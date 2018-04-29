@@ -1,0 +1,69 @@
+---
+title: "Exploratory Analysis of Prince Lyrics"
+author: "Ryan Jerving"
+date: "April 29, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intro
+
+This is a project based on the DataCamp tutorial by Debbie Liske, "Lyric Analysis with NLP & Machine Learning with R," @ <https://www.datacamp.com/community/tutorials/R-nlp-machine-learning>
+
+The project aims to demonstrate three things:
+* Text mining with R tidyverse tools
+* Sentiment analysis, topic modeling, and natural language processing (NLP)
+* Predictive analytics using machine learning tools
+
+## Loading Libraries and Data Sets
+
+First, I import any libraries needed to do these tasks, then pull in the `csv` that Liske created with Prince's lyrics, release year, and Billboard position for each song.
+
+```{r load-libraries-and-data, message = FALSE, results= 'hide'}
+
+# most of the libraries needed
+
+library(dplyr) #data manipulation
+library(ggplot2) #visualizations
+library(gridExtra) #viewing multiple plots together
+library(tidytext) #text mining
+library(wordcloud2) #creative visualizations
+
+# now the data, preventing R from converting strings to factors
+
+prince_orig = read.csv("https://s3.amazonaws.com/assets.datacamp.com/blog_assets/prince_raw_data.csv", stringsAsFactors = FALSE)
+
+```
+
+## Intial Exploration
+
+Let's see what the column headings are:
+
+```{r explore-names, message = FALSE}
+
+names(prince_orig)
+
+```
+
+From these, we'll only need row number `X`, the lyrics (`text`), `song` title, `album` title, release `year`, and `peak` Billboard, `US.Pop`, and `US.R.B` variables.
+
+```{r selected-desired-columns}
+
+prince <- prince_orig %>%
+  select(lyrics = text, song, year, album, peak,
+         us_pop = US.Pop, us_rnb = US.R.B)
+
+# Check out the size of this table
+
+dim(prince)
+
+# That's 824 songs!
+
+# And take a transposed glimpse of a sample track:
+
+glimpse(prince[139,])
+
+```
