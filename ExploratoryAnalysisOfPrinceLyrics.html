@@ -129,11 +129,16 @@ $(document).ready(function () {
 <div id="intro" class="section level2">
 <h2>Intro</h2>
 <p>This is a project based on the DataCamp tutorial by Debbie Liske, “Lyric Analysis with NLP &amp; Machine Learning with R,” @ <a href="https://www.datacamp.com/community/tutorials/R-nlp-machine-learning" class="uri">https://www.datacamp.com/community/tutorials/R-nlp-machine-learning</a></p>
-<p>The project aims to demonstrate three things: * Text mining with R tidyverse tools * Sentiment analysis, topic modeling, and natural language processing (NLP) * Predictive analytics using machine learning tools</p>
+<p>The project aims to demonstrate three things:</p>
+<ul>
+<li>Text mining with R tidyverse tools</li>
+<li>Sentiment analysis, topic modeling, and natural language processing (NLP)</li>
+<li>Predictive analytics using machine learning tools</li>
+</ul>
 </div>
 <div id="loading-libraries-and-data-sets" class="section level2">
 <h2>Loading Libraries and Data Sets</h2>
-<p>First, I import any libraries needed to do these tasks, then pull in the <code>csv</code> that Liske created with Prince’s lyrics, release year, and Billboard position for each song.</p>
+<p>First, we’ll import any libraries needed to do these tasks, then pull in the <code>csv</code> that Liske created with Prince’s lyrics, release year, and Billboard position for each song.</p>
 <pre class="r"><code># most of the libraries needed
 
 library(dplyr) #data manipulation
@@ -144,7 +149,8 @@ library(wordcloud2) #creative visualizations
 
 # now the data, preventing R from converting strings to factors
 
-prince_orig = read.csv(&quot;https://s3.amazonaws.com/assets.datacamp.com/blog_assets/prince_raw_data.csv&quot;, stringsAsFactors = FALSE)</code></pre>
+prince_orig = read.csv(&quot;https://s3.amazonaws.com/assets.datacamp.com/blog_assets/prince_raw_data.csv&quot;, 
+                       stringsAsFactors = FALSE)</code></pre>
 </div>
 <div id="intial-exploration" class="section level2">
 <h2>Intial Exploration</h2>
@@ -156,11 +162,13 @@ prince_orig = read.csv(&quot;https://s3.amazonaws.com/assets.datacamp.com/blog_a
 ## [13] &quot;NL&quot;           &quot;DE&quot;           &quot;AT&quot;           &quot;FR&quot;          
 ## [17] &quot;JP&quot;           &quot;AU&quot;           &quot;NZ&quot;           &quot;peak&quot;</code></pre>
 <p>From these, we’ll only need row number <code>X</code>, the lyrics (<code>text</code>), <code>song</code> title, <code>album</code> title, release <code>year</code>, and <code>peak</code> Billboard, <code>US.Pop</code>, and <code>US.R.B</code> variables.</p>
-<pre class="r"><code>prince &lt;- prince_orig %&gt;%
+<pre class="r"><code># Select desired columns, renaming when it would help to do so
+
+prince &lt;- prince_orig %&gt;%
   select(lyrics = text, song, year, album, peak,
          us_pop = US.Pop, us_rnb = US.R.B)
 
-# Check out the size of this table
+# Check out the size of this table. We know we have 7 dimension columns: how many rows?
 
 dim(prince)</code></pre>
 <pre><code>## [1] 824   7</code></pre>
@@ -168,7 +176,7 @@ dim(prince)</code></pre>
 
 # And take a transposed glimpse of a sample track:
 
-glimpse(prince[139,])</code></pre>
+glimpse(prince[139, ])</code></pre>
 <pre><code>## Observations: 1
 ## Variables: 7
 ## $ lyrics &lt;chr&gt; &quot;I just can't believe all the things people say, contro...
@@ -178,6 +186,98 @@ glimpse(prince[139,])</code></pre>
 ## $ peak   &lt;int&gt; 3
 ## $ us_pop &lt;chr&gt; &quot;70&quot;
 ## $ us_rnb &lt;chr&gt; &quot;3&quot;</code></pre>
+<pre class="r"><code># And lyric:
+
+str(prince[139, ]$lyrics, nchar.max = 300)</code></pre>
+<pre><code>##  chr &quot;I just can't believe all the things people say, controversy\nAm I Black or White? Am I straight or gay? Controversy\nDo I believe in God? Do I believe in me? Controversy\nControversy, controversy\nI can't understand human curiosity, controversy\nWas it good for you? Was I what you w&quot;| __truncated__</code></pre>
+</div>
+<div id="cleaning-and-transforming-data" class="section level2">
+<h2>Cleaning and Transforming Data</h2>
+<p>Now, let’s work with this dataset to condition it for analysis.</p>
+<p>We’ll create a function using <code>gsub()</code> to replace contractions across the corpus, along with another function to preserve only alphanumeric characters, and then converting all text to lowercase.</p>
+<pre class="r"><code># Function to expand contractions in an English-language source
+
+fix.contractions &lt;- function(doc) {
+  doc &lt;- gsub(&quot;won't&quot;, &quot;will not&quot;, doc)
+  doc &lt;- gsub(&quot;can't&quot;, &quot;can not&quot;, doc)
+  doc &lt;- gsub(&quot;n't&quot;, &quot; not&quot;, doc)
+  doc &lt;- gsub(&quot;'ll&quot;, &quot; will&quot;, doc)
+  doc &lt;- gsub(&quot;'re&quot;, &quot; are&quot;, doc)
+  doc &lt;- gsub(&quot;'ve&quot;, &quot; have&quot;, doc)
+  doc &lt;- gsub(&quot;'m&quot;, &quot; am&quot;, doc)
+  doc &lt;- gsub(&quot;'d&quot;, &quot; would&quot;, doc)
+  # we'll leave &quot;'s&quot; alone since it could also be possessive
+  doc &lt;- gsub(&quot;'s&quot;, &quot;&quot;, doc)
+  return(doc)
+}
+
+# Apply this function to the Prince lyrics corpus
+
+prince$lyrics &lt;- sapply(prince$lyrics, fix.contractions)
+
+# Function to remove special characters, using a regular expression for alphanumeric chars only
+
+removeSpecialChars &lt;- function(x) gsub(&quot;[^a-zA-Z0-9 ]&quot;, &quot; &quot;, x)
+
+# ... and applied to lyrics
+
+prince$lyrics &lt;- sapply(prince$lyrics, removeSpecialChars)
+
+# Convert all characters to lowercase.
+
+prince$lyrics &lt;- sapply(prince$lyrics, tolower)</code></pre>
+<p>Let’s see what we’ve got.</p>
+<pre class="r"><code># Look at a bit of a sample song again (&quot;Controversy&quot;)
+
+str(prince[139, ]$lyrics, nchar.max = 300)</code></pre>
+<pre><code>##  chr &quot;i just can not believe all the things people say  controversy am i black or white  am i straight or gay  controversy do i believe in god  do i believe in me  controversy controversy  controversy i can not understand human curiosity  controversy was it good for you  was i what you wa&quot;| __truncated__</code></pre>
+<pre class="r"><code># And let's also see what we can about the full set: 37 years of songs between 1978 and 2015, with the lowest charting (highest number) song entering at 88.
+
+summary(prince)</code></pre>
+<pre><code>##     lyrics              song                year         album          
+##  Length:824         Length:824         Min.   :1978   Length:824        
+##  Class :character   Class :character   1st Qu.:1989   Class :character  
+##  Mode  :character   Mode  :character   Median :1996   Mode  :character  
+##                                        Mean   :1995                     
+##                                        3rd Qu.:1999                     
+##                                        Max.   :2015                     
+##                                        NA's   :495                      
+##       peak          us_pop             us_rnb         
+##  Min.   : 0.00   Length:824         Length:824        
+##  1st Qu.: 2.00   Class :character   Class :character  
+##  Median : 7.00   Mode  :character   Mode  :character  
+##  Mean   :15.48                                        
+##  3rd Qu.:19.00                                        
+##  Max.   :88.00                                        
+##  NA's   :751</code></pre>
+<p>Now, we’ll add a <code>decade</code> variable in order to provide some “bucket” by which to distinguish a logical grouping of songs for comparisons (using dplyr’s <code>mutate()</code> function). We’ll do the same for a <code>chart_level</code> variable to show whether a song reached the top 100 or top 10 (and a <code>charted</code> yes/no variable for whether it cracked the top 100 at all).</p>
+<pre class="r"><code># Add decade bucket variable
+
+prince &lt;- prince %&gt;%
+  mutate(decade =
+          ifelse(prince$year %in% 1978:1979, &quot;1970s&quot;,
+          ifelse(prince$year %in% 1980:1989, &quot;1980s&quot;,
+          ifelse(prince$year %in% 1990:1999, &quot;1990s&quot;,
+          ifelse(prince$year %in% 2000:2009, &quot;2000s&quot;,
+          ifelse(prince$year %in% 2010:2015, &quot;2010s&quot;,
+          &quot;NA&quot;))))))
+
+# Add chart-level bucket variable
+
+prince &lt;- prince %&gt;%
+  mutate(chart_level =
+           ifelse(prince$peak %in% 1:10, &quot;Top 10&quot;,
+           ifelse(prince$peak %in% 11:100, &quot;Top 100&quot;,
+           &quot;Uncharted&quot;)))
+
+# Add charted variable to show whether it charted or not
+
+prince &lt;- prince %&gt;%
+  mutate(charted =
+           ifelse(prince$peak %in% 1:00, &quot;Charted&quot;,
+           &quot;Uncharted&quot;))</code></pre>
+<p>This will be our basic dataset for use here. And since we might want to use this work for something else later, let’s save it as a csv file for reference.</p>
+<pre class="r"><code>write.csv(prince, file = &quot;prince_new.csv&quot;)</code></pre>
 </div>
 
 

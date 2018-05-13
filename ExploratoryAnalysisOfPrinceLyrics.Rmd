@@ -14,13 +14,15 @@ knitr::opts_chunk$set(echo = TRUE)
 This is a project based on the DataCamp tutorial by Debbie Liske, "Lyric Analysis with NLP & Machine Learning with R," @ <https://www.datacamp.com/community/tutorials/R-nlp-machine-learning>
 
 The project aims to demonstrate three things:
+
 * Text mining with R tidyverse tools
 * Sentiment analysis, topic modeling, and natural language processing (NLP)
 * Predictive analytics using machine learning tools
 
+
 ## Loading Libraries and Data Sets
 
-First, I import any libraries needed to do these tasks, then pull in the `csv` that Liske created with Prince's lyrics, release year, and Billboard position for each song.
+First, we'll import any libraries needed to do these tasks, then pull in the `csv` that Liske created with Prince's lyrics, release year, and Billboard position for each song.
 
 ```{r load-libraries-and-data, message = FALSE, results= 'hide'}
 
@@ -34,7 +36,8 @@ library(wordcloud2) #creative visualizations
 
 # now the data, preventing R from converting strings to factors
 
-prince_orig = read.csv("https://s3.amazonaws.com/assets.datacamp.com/blog_assets/prince_raw_data.csv", stringsAsFactors = FALSE)
+prince_orig = read.csv("https://s3.amazonaws.com/assets.datacamp.com/blog_assets/prince_raw_data.csv", 
+                       stringsAsFactors = FALSE)
 
 ```
 
@@ -52,11 +55,13 @@ From these, we'll only need row number `X`, the lyrics (`text`), `song` title, `
 
 ```{r selected-desired-columns}
 
+# Select desired columns, renaming when it would help to do so
+
 prince <- prince_orig %>%
   select(lyrics = text, song, year, album, peak,
          us_pop = US.Pop, us_rnb = US.R.B)
 
-# Check out the size of this table
+# Check out the size of this table. We know we have 7 dimension columns: how many rows?
 
 dim(prince)
 
@@ -64,6 +69,106 @@ dim(prince)
 
 # And take a transposed glimpse of a sample track:
 
-glimpse(prince[139,])
+glimpse(prince[139, ])
+
+# And lyric:
+
+str(prince[139, ]$lyrics, nchar.max = 300)
+
+```
+
+## Cleaning and Transforming Data
+
+Now, let's work with this dataset to condition it for analysis.
+
+We'll create a function using `gsub()` to replace contractions across the corpus, along with another function to preserve only alphanumeric characters, and then converting all text to lowercase.
+
+```{r contraction-and-removal}
+
+# Function to expand contractions in an English-language source
+
+fix.contractions <- function(doc) {
+  doc <- gsub("won't", "will not", doc)
+  doc <- gsub("can't", "can not", doc)
+  doc <- gsub("n't", " not", doc)
+  doc <- gsub("'ll", " will", doc)
+  doc <- gsub("'re", " are", doc)
+  doc <- gsub("'ve", " have", doc)
+  doc <- gsub("'m", " am", doc)
+  doc <- gsub("'d", " would", doc)
+  # we'll leave "'s" alone since it could also be possessive
+  doc <- gsub("'s", "", doc)
+  return(doc)
+}
+
+# Apply this function to the Prince lyrics corpus
+
+prince$lyrics <- sapply(prince$lyrics, fix.contractions)
+
+# Function to remove special characters, using a regular expression for alphanumeric chars only
+
+removeSpecialChars <- function(x) gsub("[^a-zA-Z0-9 ]", " ", x)
+
+# ... and applied to lyrics
+
+prince$lyrics <- sapply(prince$lyrics, removeSpecialChars)
+
+# Convert all characters to lowercase.
+
+prince$lyrics <- sapply(prince$lyrics, tolower)
+
+```
+
+Let's see what we've got.
+
+```{r display-cleaned}
+
+# Look at a bit of a sample song again ("Controversy")
+
+str(prince[139, ]$lyrics, nchar.max = 300)
+
+# And let's also see what we can about the full set: 37 years of songs between 1978 and 2015, with the lowest charting (highest number) song entering at 88.
+
+summary(prince)
+
+```
+
+Now, we'll add a `decade` variable in order to provide some "bucket" by which to distinguish a logical grouping of songs for comparisons (using dplyr's `mutate()` function). We'll do the same for a `chart_level` variable to show whether a song reached the top 100 or top 10 (and a `charted` yes/no variable for whether it cracked the top 100 at all).
+
+```{r add-variables}
+
+# Add decade bucket variable
+
+prince <- prince %>%
+  mutate(decade =
+          ifelse(prince$year %in% 1978:1979, "1970s",
+          ifelse(prince$year %in% 1980:1989, "1980s",
+          ifelse(prince$year %in% 1990:1999, "1990s",
+          ifelse(prince$year %in% 2000:2009, "2000s",
+          ifelse(prince$year %in% 2010:2015, "2010s",
+          "NA"))))))
+
+# Add chart-level bucket variable
+
+prince <- prince %>%
+  mutate(chart_level =
+           ifelse(prince$peak %in% 1:10, "Top 10",
+           ifelse(prince$peak %in% 11:100, "Top 100",
+           "Uncharted")))
+
+# Add charted variable to show whether it charted or not
+
+prince <- prince %>%
+  mutate(charted =
+           ifelse(prince$peak %in% 1:00, "Charted",
+           "Uncharted"))
+
+```
+
+This will be our basic dataset for use here. And since we might want to use this work for something else later, let's save it as a csv file for reference.
+
+```{r write-to-file}
+
+write.csv(prince, file = "prince_new.csv")
 
 ```
