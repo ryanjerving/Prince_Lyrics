@@ -19,6 +19,8 @@ The project aims to demonstrate three things:
 * Sentiment analysis, topic modeling, and natural language processing (NLP)
 * Predictive analytics using machine learning tools
 
+![Prince](https://media.boingboing.net/wp-content/uploads/2018/01/PRINCE.jpg)
+
 
 ## Loading Libraries and Data Sets
 
@@ -69,11 +71,13 @@ dim(prince)
 
 # And take a transposed glimpse of a sample track:
 
-glimpse(prince[139, ])
+selectedSongRow = which(prince$song == 'international lover')
+
+glimpse(prince[selectedSongRow, ])
 
 # And lyric:
 
-str(prince[139, ]$lyrics, nchar.max = 300)
+str(prince[selectedSongRow, ]$lyrics, nchar.max = 300)
 
 ```
 
@@ -125,7 +129,7 @@ Let's see what we've got.
 
 # Look at a bit of a sample song again ("Controversy")
 
-str(prince[139, ]$lyrics, nchar.max = 300)
+str(prince[selectedSongRow, ]$lyrics, nchar.max = 300)
 
 # And let's also see what we can about the full set: 37 years of songs between 1978 and 2015, with the lowest charting (highest number) song entering at 88.
 
@@ -170,5 +174,43 @@ This will be our basic dataset for use here. And since we might want to use this
 ```{r write-to-file}
 
 write.csv(prince, file = "prince_new.csv")
+
+```
+
+## Descriptive Statistics
+
+To start visualizing and analyzing what we've got, we'll work with Debbie Liske's preferred color scheme for creating plots.
+
+```{r color-scheme}
+
+# define color scheme
+
+dl_colors <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#D55E00")
+
+# ...and a function for how we'll handle the display
+
+theme_lyrics <- function()
+{
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none")
+}
+
+```
+
+We'll start by taking a look at songs by decade (filtering out blank "NA" values for years).
+
+```{r songcounts-by-decade}
+
+prince %>%
+  filter(decade != "NA") %>%
+  group_by(decade, charted) %>%
+  summarise(songCounts = n()) %>%
+  ggplot() +
+  geom_bar(aes(x = decade, y = songCounts, fill = charted), stat = "identity")
+
 
 ```
