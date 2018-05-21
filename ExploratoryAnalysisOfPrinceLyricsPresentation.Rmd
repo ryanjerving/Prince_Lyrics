@@ -2,7 +2,8 @@
 title: "Exploratory Analysis of Prince Lyrics"
 author: "Ryan Jerving"
 date: "April 29, 2018"
-output: html_document
+output: beamer_presentation
+
 
 
 ---
@@ -21,8 +22,9 @@ The project aims to demonstrate three things:
 * Sentiment analysis, topic modeling, and natural language processing (NLP)
 * Predictive analytics using machine learning tools
 
-![Prince](https://media.boingboing.net/wp-content/uploads/2018/01/PRINCE.jpg)
-
+```{r}
+# ![Prince](https://media.boingboing.net/wp-content/uploads/2018/01/PRINCE.jpg)
+```
 
 ## Loading Libraries and Data Sets
 
@@ -206,7 +208,9 @@ theme_lyrics <- function()
 
 We'll start by taking a look at songs by decade (filtering out blank "NA" values for years), and using fill colors to indicate what proportion of songs in each decade broke the top 100 chart. The `ggplot` figure will be tweak a bit in the `theme` function.
 
-```{r songcounts-by-decade}
+## Chart
+
+```{r songcounts-by-decade, echo=FALSE}
 
 prince %>%
   filter(decade != "NA") %>%
@@ -218,43 +222,6 @@ prince %>%
         legend.title = element_blank(),
         panel.grid.minor = element_blank()) +
   ggtitle("Released Songs") +
-  labs(x = NULL, y = "Song Count")
-
-
-```
-
-We can create a similar graphic based around `chart_level`: 
-
-```{r chartlevel-by-decade}
-
-prince %>%
-  filter(decade != "NA", peak > 0) %>%
-  group_by(decade, chart_level) %>%
-  summarise(songCounts = n()) %>%
-  ggplot() +
-  geom_bar(aes(x = decade, y = songCounts, fill = chart_level), stat = "identity") +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        panel.grid.minor = element_blank()) +
-  ggtitle("Just Charted Songs") +
-  labs(x = NULL, y = "Song Count")
-
-
-```
-
-And, finally, we can look at all songs, regardless of release date or chart level:
-
-```{r all-songs}
-
-prince %>%
-  group_by(decade, chart_level) %>%
-  summarise(songCounts = n()) %>%
-  ggplot() +
-  geom_bar(aes(x = decade, y = songCounts, fill = chart_level), stat = "identity") +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        panel.grid.minor = element_blank()) +
-  ggtitle("All Songs") +
   labs(x = NULL, y = "Song Count")
 
 
